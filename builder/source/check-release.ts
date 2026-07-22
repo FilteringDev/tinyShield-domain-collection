@@ -25,11 +25,12 @@ async function AppendWorkflowFile(Path: string | undefined, Content: string): Pr
 async function CheckRelease(): Promise<void> {
   const PreviousManifestPath = ReadRequiredArgument('--previous-manifest')
   const AllowLargeChange = Process.argv.includes('--allow-large-change')
+  const ForcePublish = Process.argv.includes('--force-publish')
   const [Current, Previous] = await Promise.all([
     ReadManifest(CurrentManifestPath, 'Current manifest'),
     ReadManifest(PreviousManifestPath, 'Previous manifest')
   ])
-  const Decision = CompareReleaseManifests(Current, Previous, AllowLargeChange)
+  const Decision = CompareReleaseManifests(Current, Previous, AllowLargeChange, ForcePublish)
   const Status = Decision.Changed ? 'changed' : 'unchanged'
 
   await AppendWorkflowFile(Process.env.GITHUB_OUTPUT, `changed=${Decision.Changed}\n`)
@@ -37,6 +38,7 @@ async function CheckRelease(): Promise<void> {
     '## Domain release check',
     '',
     `- Status: ${Status}`,
+    `- Forced publish: ${ForcePublish}`,
     `- Previous normal domains: ${Previous.Counts.Normal}`,
     `- Current normal domains: ${Current.Counts.Normal}`,
     `- Current content hash: \`${Current.ContentHash}\``,

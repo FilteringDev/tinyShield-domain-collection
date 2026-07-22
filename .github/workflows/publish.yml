@@ -51,24 +51,46 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PreviousVersion="$(npm view @filteringdev/tinyshield-domain-collection@latest version)"
-          mkdir -p .build/previous
-          npm pack "@filteringdev/tinyshield-domain-collection@${PreviousVersion}" \
-            --pack-destination .build/previous \
-            --json > .build/previous/pack.json
+          PackageName="@filteringdev/tinyshield-domain-collection"
+          for Attempt in 1 2 3 4 5; do
+            rm -rf .build/previous
+            mkdir -p .build/previous
+            if PreviousVersion="$(npm view "${PackageName}@latest" version)" && \
+              npm pack "${PackageName}@${PreviousVersion}" \
+                --pack-destination .build/previous \
+                --json > .build/previous/pack.json; then
+              break
+            fi
+            if [[ "${Attempt}" == "5" ]]; then
+              echo "::error::Unable to download ${PackageName}@latest after ${Attempt} attempts"
+              exit 1
+            fi
+            Delay=$((Attempt * 15))
+            echo "::warning::npm registry lookup failed; retrying in ${Delay} seconds"
+            sleep "${Delay}"
+          done
           Tarball="$(node --input-type=module -e "import Fs from 'node:fs'; const [Result] = JSON.parse(Fs.readFileSync('.build/previous/pack.json', 'utf8')); process.stdout.write(Result.filename)")"
           tar -xzf ".build/previous/${Tarball}" -C .build/previous
           echo "version=${PreviousVersion}" >> "${GITHUB_OUTPUT}"
+          if [[ "${PreviousVersion}" == *-* ]]; then
+            echo "prerelease=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "prerelease=false" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Compare domain manifests
         id: comparison
         shell: bash
         env:
           ALLOW_LARGE_CHANGE: ${{ inputs.allow-large-change || false }}
+          FORCE_PUBLISH: ${{ steps.previous.outputs.prerelease }}
         run: |
           set -euo pipefail
           Arguments=(--previous-manifest ../.build/previous/package/dist/manifest.json)
           if [[ "${ALLOW_LARGE_CHANGE}" == "true" ]]; then
             Arguments+=(--allow-large-change)
+          fi
+          if [[ "${FORCE_PUBLISH}" == "true" ]]; then
+            Arguments+=(--force-publish)
           fi
           npm run release:check -w builder -- "${Arguments[@]}"
       - name: Set next patch version

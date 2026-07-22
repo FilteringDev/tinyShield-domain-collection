@@ -85,15 +85,15 @@ type DomainCollectionManifest = {
 
 ## Updating
 
-The scheduled workflow runs daily at 03:17 UTC and can also be started manually. It performs these steps:
+The scheduled workflow runs daily at 00:00 UTC and can also be started manually. It performs these steps:
 
 1. Lint and test the generator.
 2. Fetch live domain data through the npm release of `@filteringdev/tinyshield-lib`.
-3. Compare the generated hash with the manifest in the latest npm package.
+3. Download the latest npm package with retries and compare its manifest with the generated hash.
 4. Exit without publishing when the hash is unchanged.
-5. Increment only the patch version and publish through npm trusted publishing when content changed.
+5. Increment only the patch version and publish through npm trusted publishing when content changed or a prerelease is promoted.
 
-The workflow fails without publishing when an upstream request, npm registry lookup, schema validation, or build fails. A decrease of more than 25 percent in the `Normal` count is also blocked. A maintainer can review the change and use the manual `allow-large-change` input to permit it.
+When the latest npm package is a prerelease, the workflow promotes it to a stable version even when the domain hash is unchanged. The workflow fails without publishing when an upstream request, repeated npm registry lookup, schema validation, or build fails. A decrease of more than 25 percent in the `Normal` count is also blocked. A maintainer can review the change and use the manual `allow-large-change` input to permit it.
 
 Generated files and workflow-only version changes are not committed to Git or tagged.
 

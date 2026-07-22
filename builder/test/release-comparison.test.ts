@@ -26,6 +26,15 @@ test('skips a release when the content hash is unchanged', T => {
   })
 })
 
+test('forces a release when promoting a prerelease baseline', T => {
+  const Manifest = CreateManifest(100)
+  T.deepEqual(CompareReleaseManifests(Manifest, Manifest, false, true), {
+    Changed: true,
+    LargeDecrease: false,
+    DecreasePercentage: 0
+  })
+})
+
 test('allows ordinary changes and an exact 25 percent decrease', T => {
   T.deepEqual(CompareReleaseManifests(CreateManifest(90, 'b'), CreateManifest(100)), {
     Changed: true,

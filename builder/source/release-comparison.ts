@@ -49,10 +49,11 @@ export function ParseDomainCollectionManifest(Value: unknown, Name: string): Dom
 export function CompareReleaseManifests(
   Current: DomainCollectionManifest,
   Previous: DomainCollectionManifest,
-  AllowLargeChange: boolean = false
+  AllowLargeChange: boolean = false,
+  ForcePublish: boolean = false
 ): ReleaseDecision {
   if (Current.ContentHash === Previous.ContentHash) {
-    return { Changed: false, LargeDecrease: false, DecreasePercentage: 0 }
+    return { Changed: ForcePublish, LargeDecrease: false, DecreasePercentage: 0 }
   }
 
   const DecreasePercentage = Math.max(0, ((Previous.Counts.Normal - Current.Counts.Normal) / Previous.Counts.Normal) * 100)
