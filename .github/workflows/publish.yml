@@ -52,13 +52,26 @@ jobs:
         run: |
           set -euo pipefail
           PackageName="@filteringdev/tinyshield-domain-collection"
-          for Attempt in 1 2 3 4 5; do
+          DownloadPreviousPackage() {
             rm -rf .build/previous
             mkdir -p .build/previous
-            if PreviousVersion="$(npm view "${PackageName}@latest" version)" && \
-              npm pack "${PackageName}@${PreviousVersion}" \
-                --pack-destination .build/previous \
-                --json > .build/previous/pack.json; then
+            PreviousVersion="$(npm view "${PackageName}@latest" version)" || return 1
+            npm pack "${PackageName}@${PreviousVersion}" \
+              --pack-destination .build/previous \
+              --silent > /dev/null || return 1
+            mapfile -t Tarballs < <(find .build/previous -maxdepth 1 -type f -name '*.tgz' -print)
+            if [[ "${#Tarballs[@]}" != "1" ]]; then
+              echo "::warning::Expected one npm tarball, found ${#Tarballs[@]}"
+              return 1
+            fi
+            tar -xzf "${Tarballs[0]}" -C .build/previous || return 1
+            if [[ ! -f .build/previous/package/dist/manifest.json ]]; then
+              echo "::warning::Downloaded package does not contain dist/manifest.json"
+              return 1
+            fi
+          }
+          for Attempt in 1 2 3 4 5; do
+            if DownloadPreviousPackage; then
               break
             fi
             if [[ "${Attempt}" == "5" ]]; then
