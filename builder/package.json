@@ -1,0 +1,36 @@
+{
+  "name": "@filteringdev/tinyshield-domain-collection-builder",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx source/build.ts && tsc -p ../tsconfig.json",
+    "lint": "tsc --noEmit && tsc --noEmit -p ../tsconfig.json && eslint source/**/*.ts test/**/*.ts ../source/**/*.ts",
+    "release:check": "tsx source/check-release.ts",
+    "test": "ava test/**/*.test.ts"
+  },
+  "dependencies": {
+    "@filteringdev/tinyshield-lib": "4.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "ava": "^8.0.0",
+    "eslint": "^10.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
+  },
+  "ava": {
+    "extensions": [
+      "ts"
+    ],
+    "files": [
+      "test/**/*.test.ts"
+    ],
+    "nodeArguments": [
+      "--import=tsx"
+    ],
+    "workerThreads": false
+  }
+}

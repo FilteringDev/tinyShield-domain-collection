@@ -1,0 +1,17 @@
+{
+  "include": [
+    "source/**/*.ts"
+  ],
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ES2024",
+    "moduleResolution": "NodeNext",
+    "rootDir": "source",
+    "outDir": "dist",
+    "declaration": true,
+    "noEmit": false,
+    "removeComments": false,
+    "skipLibCheck": true,
+    "strict": true
+  }
+}

@@ -1,0 +1,84 @@
+name: Publish domain collection to npm
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      allow-large-change:
+        description: Allow a Normal domain count decrease over 25 percent
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-domain-collection-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish changed domains
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Update npm
+        run: npm install -g npm@latest
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install --no-lockfile
+      - name: Run lint
+        run: npm run lint
+      - name: Run tests
+        run: npm test
+      - name: Build live domain artifacts
+        run: npm run build
+      - name: Download previous npm package
+        id: previous
+        shell: bash
+        run: |
+          set -euo pipefail
+          PreviousVersion="$(npm view @filteringdev/tinyshield-domain-collection@latest version)"
+          mkdir -p .build/previous
+          npm pack "@filteringdev/tinyshield-domain-collection@${PreviousVersion}" \
+            --pack-destination .build/previous \
+            --json > .build/previous/pack.json
+          Tarball="$(node --input-type=module -e "import Fs from 'node:fs'; const [Result] = JSON.parse(Fs.readFileSync('.build/previous/pack.json', 'utf8')); process.stdout.write(Result.filename)")"
+          tar -xzf ".build/previous/${Tarball}" -C .build/previous
+          echo "version=${PreviousVersion}" >> "${GITHUB_OUTPUT}"
+      - name: Compare domain manifests
+        id: comparison
+        shell: bash
+        env:
+          ALLOW_LARGE_CHANGE: ${{ inputs.allow-large-change || false }}
+        run: |
+          set -euo pipefail
+          Arguments=(--previous-manifest ../.build/previous/package/dist/manifest.json)
+          if [[ "${ALLOW_LARGE_CHANGE}" == "true" ]]; then
+            Arguments+=(--allow-large-change)
+          fi
+          npm run release:check -w builder -- "${Arguments[@]}"
+      - name: Set next patch version
+        if: steps.comparison.outputs.changed == 'true'
+        run: |
+          npm pkg set version="${{ steps.previous.outputs.version }}"
+          npm version patch --no-git-tag-version --workspaces=false
+      - name: Inspect publish contents
+        if: steps.comparison.outputs.changed == 'true'
+        run: npm run pack:check
+      - name: Publish package
+        if: steps.comparison.outputs.changed == 'true'
+        run: npm publish --access public

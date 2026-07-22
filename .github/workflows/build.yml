@@ -1,0 +1,66 @@
+name: Check testing building linting
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Run ESLint and TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install --no-lockfile
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    name: Run AVA tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install --no-lockfile
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build and inspect package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install --no-lockfile
+      - name: Build live domain artifacts
+        run: npm run build
+      - name: Smoke-test package entry point
+        run: node --input-type=module -e "const Package = await import('./dist/index.js'); if (Package.Normal.length === 0) throw new Error('Normal domain collection is empty')"
+      - name: Inspect publish contents
+        run: npm run pack:check

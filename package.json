@@ -1,0 +1,68 @@
+{
+  "name": "@filteringdev/tinyshield-domain-collection",
+  "version": "0.0.0",
+  "description": "Deterministic domain collections generated from tinyShield reference sources.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./lib": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
+    },
+    "./normal.json": {
+      "types": "./dist/normal.json.d.ts",
+      "default": "./dist/normal.json"
+    },
+    "./full.json": {
+      "types": "./dist/full.json.d.ts",
+      "default": "./dist/full.json"
+    },
+    "./each-domain.json": {
+      "types": "./dist/each-domain.json.d.ts",
+      "default": "./dist/each-domain.json"
+    },
+    "./each-domain-full.json": {
+      "types": "./dist/each-domain-full.json.d.ts",
+      "default": "./dist/each-domain-full.json"
+    },
+    "./manifest.json": {
+      "types": "./dist/manifest.json.d.ts",
+      "default": "./dist/manifest.json"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "npm run build -w builder",
+    "lint": "npm run lint -w builder",
+    "test": "npm run test -w builder",
+    "pack:check": "npm pack --dry-run --json"
+  },
+  "keywords": [
+    "Ad-Shield",
+    "domains",
+    "tinyShield"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FilteringDev/tinyShield-domain-collection.git"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "workspaces": [
+    "builder"
+  ],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "eslint": "^10.3.0",
+    "typescript-eslint": "^8.59.2"
+  }
+}
