@@ -9,7 +9,7 @@
     "test": "ava test/**/*.test.ts"
   },
   "dependencies": {
-    "@filteringdev/tinyshield-lib": "4.0.5"
+    "@filteringdev/tinyshield-lib": "4.0.6"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
