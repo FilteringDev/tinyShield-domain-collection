@@ -2,7 +2,7 @@ import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import test, { type ExecutionContext } from 'ava'
+import { test, expect, onTestFinished } from 'vitest'
 import { CreateDomainArtifacts, type DomainArtifacts } from '../source/domain-artifacts.js'
 
 function CreateContainer(Reverse: boolean = false): Map<string, Set<string> | Set<Set<string>>> {
@@ -28,9 +28,9 @@ function ParseJsonFile(Artifacts: DomainArtifacts, Name: string): unknown {
   return JSON.parse(Content)
 }
 
-async function ImportGeneratedLibrary(T: ExecutionContext) {
+async function ImportGeneratedLibrary() {
   const TemporaryDirectory = await mkdtemp(join(tmpdir(), 'tinyshield-domains-'))
-  T.teardown(async () => rm(TemporaryDirectory, { recursive: true, force: true }))
+  onTestFinished(async () => rm(TemporaryDirectory, { recursive: true, force: true }))
 
   const Artifacts = CreateDomainArtifacts(CreateContainer(), '4.0.5')
   await Promise.all([
@@ -58,33 +58,33 @@ async function ImportGeneratedLibrary(T: ExecutionContext) {
   return { Library, Root }
 }
 
-test('normalizes flat and grouped domain views', T => {
+test('normalizes flat and grouped domain views', () => {
   const Artifacts = CreateDomainArtifacts(CreateContainer(), '4.0.5')
 
-  T.deepEqual(ParseJsonFile(Artifacts, 'normal.json'), [
+  expect(ParseJsonFile(Artifacts, 'normal.json')).toEqual([
     'example.*',
     'm.example',
     'z.example'
   ])
-  T.deepEqual(ParseJsonFile(Artifacts, 'each-domain.json'), [
+  expect(ParseJsonFile(Artifacts, 'each-domain.json')).toEqual([
     ['a.example', 'z.example'],
     ['alpha.test', 'beta.test']
   ])
 })
 
-test('produces identical files for different insertion orders', T => {
+test('produces identical files for different insertion orders', () => {
   const Forward = CreateDomainArtifacts(CreateContainer(), '4.0.5')
   const Reverse = CreateDomainArtifacts(CreateContainer(true), '4.0.5')
 
-  T.deepEqual([...Forward.Files], [...Reverse.Files])
-  T.is(Forward.Manifest.ContentHash, Reverse.Manifest.ContentHash)
+  expect([...Forward.Files]).toEqual([...Reverse.Files])
+  expect(Forward.Manifest.ContentHash).toBe(Reverse.Manifest.ContentHash)
 })
 
-test('records source metadata and view counts', T => {
+test('records source metadata and view counts', () => {
   const Artifacts = CreateDomainArtifacts(CreateContainer(), '4.0.5')
 
-  T.regex(Artifacts.Manifest.ContentHash, /^[a-f0-9]{64}$/)
-  T.deepEqual(Artifacts.Manifest, {
+  expect(Artifacts.Manifest.ContentHash).toMatch(/^[a-f0-9]{64}$/)
+  expect(Artifacts.Manifest).toEqual({
     SchemaVersion: 1,
     ContentHash: Artifacts.Manifest.ContentHash,
     SourcePackage: '@filteringdev/tinyshield-lib',
@@ -98,58 +98,50 @@ test('records source metadata and view counts', T => {
   })
 })
 
-test('rejects missing and empty views', T => {
-  T.throws(() => CreateDomainArtifacts(new Map(), '4.0.5'), {
-    message: 'Normal must be a non-empty Set'
-  })
+test('rejects missing and empty views', () => {
+  expect(() => CreateDomainArtifacts(new Map(), '4.0.5')).toThrow('Normal must be a non-empty Set')
 
   const EmptyGroup = CreateContainer()
   EmptyGroup.set('EachDomain', new Set([new Set()]))
-  T.throws(() => CreateDomainArtifacts(EmptyGroup, '4.0.5'), {
-    message: 'EachDomain[0] must be a non-empty Set'
-  })
+  expect(() => CreateDomainArtifacts(EmptyGroup, '4.0.5')).toThrow('EachDomain[0] must be a non-empty Set')
 })
 
-test('rejects non-string domains and an empty source version', T => {
+test('rejects non-string domains and an empty source version', () => {
   const InvalidDomain = CreateContainer() as Map<string, Set<unknown>>
   InvalidDomain.set('Full', new Set([42]))
 
-  T.throws(() => CreateDomainArtifacts(InvalidDomain, '4.0.5'), {
-    message: 'Full must contain only non-empty strings'
-  })
-  T.throws(() => CreateDomainArtifacts(CreateContainer(), ''), {
-    message: 'Source package version must not be empty'
-  })
+  expect(() => CreateDomainArtifacts(InvalidDomain, '4.0.5')).toThrow('Full must contain only non-empty strings')
+  expect(() => CreateDomainArtifacts(CreateContainer(), '')).toThrow('Source package version must not be empty')
 })
 
-test('generated library exposes a sorted, mutation-isolated domain API', async T => {
-  const { Library, Root } = await ImportGeneratedLibrary(T)
+test('generated library exposes a sorted, mutation-isolated domain API', async () => {
+  const { Library, Root } = await ImportGeneratedLibrary()
   const ExpectedDomains = ['a.example', 'example.com', 'middle.net', 'test.org', 'z.example']
 
   const FirstList = Library.getDomainsList()
   const SecondList = Library.getDomainsList()
-  T.deepEqual(FirstList, ExpectedDomains)
-  T.deepEqual(SecondList, ExpectedDomains)
-  T.not(FirstList, SecondList)
+  expect(FirstList).toEqual(ExpectedDomains)
+  expect(SecondList).toEqual(ExpectedDomains)
+  expect(FirstList).not.toBe(SecondList)
 
   FirstList.splice(0, FirstList.length, 'changed.invalid')
   Root.Full.splice(0, Root.Full.length, 'changed.invalid')
-  T.deepEqual(Library.getDomainsList(), ExpectedDomains)
+  expect(Library.getDomainsList()).toEqual(ExpectedDomains)
 
-  T.is(Root.getDomainsList, Library.getDomainsList)
-  T.is(Root.isAllowedToRun, Library.isAllowedToRun)
+  expect(Root.getDomainsList).toBe(Library.getDomainsList)
+  expect(Root.isAllowedToRun).toBe(Library.isAllowedToRun)
 })
 
-test('isAllowedToRun matches exact domains and label-boundary suffixes', async T => {
-  const { Library } = await ImportGeneratedLibrary(T)
+test('isAllowedToRun matches exact domains and label-boundary suffixes', async () => {
+  const { Library } = await ImportGeneratedLibrary()
 
-  T.true(Library.isAllowedToRun(new URL('https://a.example/')))
-  T.true(Library.isAllowedToRun(new URL('https://middle.net/')))
-  T.true(Library.isAllowedToRun(new URL('https://z.example/')))
-  T.true(Library.isAllowedToRun(new URL('https://sub.example.com/')))
-  T.true(Library.isAllowedToRun(new URL('https://deep.a.b.example.com/')))
-  T.true(Library.isAllowedToRun(new URL('https://EXAMPLE.COM/')))
-  T.true(Library.isAllowedToRun(new URL('https://example.com./')))
-  T.false(Library.isAllowedToRun(new URL('https://notexample.com/')))
-  T.false(Library.isAllowedToRun(new URL('https://other.org/')))
+  expect(Library.isAllowedToRun(new URL('https://a.example/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://middle.net/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://z.example/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://sub.example.com/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://deep.a.b.example.com/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://EXAMPLE.COM/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://example.com./'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://notexample.com/'))).toBe(false)
+  expect(Library.isAllowedToRun(new URL('https://other.org/'))).toBe(false)
 })

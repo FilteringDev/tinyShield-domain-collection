@@ -1,4 +1,4 @@
-import test from 'ava'
+import { test, expect } from 'vitest'
 import type { DomainCollectionManifest } from '../source/domain-artifacts.js'
 import { CompareReleaseManifests, ParseDomainCollectionManifest } from '../source/release-comparison.js'
 
@@ -17,52 +17,48 @@ function CreateManifest(Normal: number, HashCharacter: string = 'a'): DomainColl
   }
 }
 
-test('skips a release when the content hash is unchanged', T => {
+test('skips a release when the content hash is unchanged', () => {
   const Manifest = CreateManifest(100)
-  T.deepEqual(CompareReleaseManifests(Manifest, Manifest), {
+  expect(CompareReleaseManifests(Manifest, Manifest)).toEqual({
     Changed: false,
     LargeDecrease: false,
     DecreasePercentage: 0
   })
 })
 
-test('forces a release when promoting a prerelease baseline', T => {
+test('forces a release when promoting a prerelease baseline', () => {
   const Manifest = CreateManifest(100)
-  T.deepEqual(CompareReleaseManifests(Manifest, Manifest, false, true), {
+  expect(CompareReleaseManifests(Manifest, Manifest, false, true)).toEqual({
     Changed: true,
     LargeDecrease: false,
     DecreasePercentage: 0
   })
 })
 
-test('allows ordinary changes and an exact 25 percent decrease', T => {
-  T.deepEqual(CompareReleaseManifests(CreateManifest(90, 'b'), CreateManifest(100)), {
+test('allows ordinary changes and an exact 25 percent decrease', () => {
+  expect(CompareReleaseManifests(CreateManifest(90, 'b'), CreateManifest(100))).toEqual({
     Changed: true,
     LargeDecrease: false,
     DecreasePercentage: 10
   })
-  T.false(CompareReleaseManifests(CreateManifest(75, 'b'), CreateManifest(100)).LargeDecrease)
+  expect(CompareReleaseManifests(CreateManifest(75, 'b'), CreateManifest(100)).LargeDecrease).toBe(false)
 })
 
-test('blocks a decrease over 25 percent unless explicitly allowed', T => {
+test('blocks a decrease over 25 percent unless explicitly allowed', () => {
   const Current = CreateManifest(74, 'b')
   const Previous = CreateManifest(100)
 
-  T.throws(() => CompareReleaseManifests(Current, Previous), {
-    message: 'Normal domain count decreased by 26.00%, exceeding the 25% release limit'
-  })
-  T.true(CompareReleaseManifests(Current, Previous, true).LargeDecrease)
+  expect(() => CompareReleaseManifests(Current, Previous)).toThrow('Normal domain count decreased by 26.00%, exceeding the 25% release limit')
+  expect(CompareReleaseManifests(Current, Previous, true).LargeDecrease).toBe(true)
 })
 
-test('parses a valid manifest and rejects malformed counts', T => {
+test('parses a valid manifest and rejects malformed counts', () => {
   const Manifest = CreateManifest(100)
-  T.deepEqual(ParseDomainCollectionManifest(Manifest, 'Fixture'), Manifest)
+  expect(ParseDomainCollectionManifest(Manifest, 'Fixture')).toEqual(Manifest)
 
   const InvalidManifest: unknown = {
     ...Manifest,
     Counts: { ...Manifest.Counts, Normal: 0 }
   }
-  T.throws(() => ParseDomainCollectionManifest(InvalidManifest, 'Fixture'), {
-    message: 'Manifest Counts.Normal must be a positive safe integer'
-  })
+  expect(() => ParseDomainCollectionManifest(InvalidManifest, 'Fixture')).toThrow('Manifest Counts.Normal must be a positive safe integer')
 })
