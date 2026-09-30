@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@filteringdev/tinyshield-lib": "4.0.5"
+    "@filteringdev/tinyshield-lib": "4.0.13"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
