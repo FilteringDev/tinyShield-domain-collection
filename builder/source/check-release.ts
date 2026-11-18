@@ -34,6 +34,7 @@ async function CheckRelease(): Promise<void> {
   const Status = Decision.Changed ? 'changed' : 'unchanged'
 
   await AppendWorkflowFile(Process.env.GITHUB_OUTPUT, `changed=${Decision.Changed}\n`)
+  await AppendWorkflowFile(Process.env.GITHUB_OUTPUT, `breaking=${Current.SchemaVersion > Previous.SchemaVersion}\n`)
   await AppendWorkflowFile(Process.env.GITHUB_STEP_SUMMARY, [
     '## Domain release check',
     '',

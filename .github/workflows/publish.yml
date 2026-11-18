@@ -104,11 +104,17 @@ jobs:
             Arguments+=(--force-publish)
           fi
           npm run release:check -w builder -- "${Arguments[@]}"
-      - name: Set next patch version
+      - name: Set next version
         if: steps.comparison.outputs.changed == 'true'
+        env:
+          BREAKING: ${{ steps.comparison.outputs.breaking }}
         run: |
           npm pkg set version="${{ steps.previous.outputs.version }}"
-          npm version patch --no-git-tag-version --workspaces=false
+          if [[ "${BREAKING}" == "true" ]]; then
+            npm version major --no-git-tag-version --workspaces=false
+          else
+            npm version patch --no-git-tag-version --workspaces=false
+          fi
       - name: Inspect publish contents
         if: steps.comparison.outputs.changed == 'true'
         run: npm run pack:check

@@ -5,12 +5,13 @@ import { pathToFileURL } from 'node:url'
 import { test, expect, onTestFinished } from 'vitest'
 import { CreateDomainArtifacts, type DomainArtifacts } from '../source/domain-artifacts.js'
 
-function CreateContainer(Reverse: boolean = false): Map<string, Set<string> | Set<Set<string>>> {
+function CreateContainer(Reverse: boolean = false): Map<string, Set<string> | Set<Set<string>> | Map<unknown, unknown>> {
   const Order = <Value>(Values: Value[]): Value[] => Reverse ? Values.reverse() : Values
 
-  return new Map<string, Set<string> | Set<Set<string>>>([
+  return new Map<string, Set<string> | Set<Set<string>> | Map<unknown, unknown>>([
+    ['Groups', new Map()],
     ['Normal', new Set(Order(['z.example', 'example.*', 'm.example']))],
-    ['Full', new Set(Order(['z.example', 'test.org', 'middle.net', 'example.com', 'a.example']))],
+    ['Full', new Set(Order(['z.example', 'test.org', 'middle.net', 'example.com', 'a.example', 'wild.*']))],
     ['EachDomain', new Set(Order([
       new Set(Order(['z.example', 'a.example'])),
       new Set(Order(['beta.test', 'alpha.test']))
@@ -85,13 +86,13 @@ test('records source metadata and view counts', () => {
 
   expect(Artifacts.Manifest.ContentHash).toMatch(/^[a-f0-9]{64}$/)
   expect(Artifacts.Manifest).toEqual({
-    SchemaVersion: 1,
+    SchemaVersion: 2,
     ContentHash: Artifacts.Manifest.ContentHash,
     SourcePackage: '@filteringdev/tinyshield-lib',
     SourcePackageVersion: '4.0.5',
     Counts: {
       Normal: 3,
-      Full: 5,
+      Full: 6,
       EachDomain: 2,
       EachDomainFull: 2
     }
@@ -99,7 +100,8 @@ test('records source metadata and view counts', () => {
 })
 
 test('rejects missing and empty views', () => {
-  expect(() => CreateDomainArtifacts(new Map(), '4.0.5')).toThrow('Normal must be a non-empty Set')
+  expect(() => CreateDomainArtifacts(new Map(), '4.0.5')).toThrow('wildcard-preserving tinyshield-lib release')
+  expect(() => CreateDomainArtifacts(new Map([['Groups', new Map()]]), '4.0.5')).toThrow('Normal must be a non-empty Set')
 
   const EmptyGroup = CreateContainer()
   EmptyGroup.set('EachDomain', new Set([new Set()]))
@@ -116,7 +118,7 @@ test('rejects non-string domains and an empty source version', () => {
 
 test('generated library exposes a sorted, mutation-isolated domain API', async () => {
   const { Library, Root } = await ImportGeneratedLibrary()
-  const ExpectedDomains = ['a.example', 'example.com', 'middle.net', 'test.org', 'z.example']
+  const ExpectedDomains = ['a.example', 'example.com', 'middle.net', 'test.org', 'wild.*', 'z.example']
 
   const FirstList = Library.getDomainsList()
   const SecondList = Library.getDomainsList()
@@ -144,4 +146,9 @@ test('isAllowedToRun matches exact domains and label-boundary suffixes', async (
   expect(Library.isAllowedToRun(new URL('https://example.com./'))).toBe(true)
   expect(Library.isAllowedToRun(new URL('https://notexample.com/'))).toBe(false)
   expect(Library.isAllowedToRun(new URL('https://other.org/'))).toBe(false)
+  expect(Library.isAllowedToRun(new URL('https://sub.wild.co.uk/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://wild.com.evil/'))).toBe(true)
+  expect(Library.isAllowedToRun(new URL('https://notwild.com/'))).toBe(false)
+  expect(Library.isAllowedToRun(new URL('https://wild/'))).toBe(false)
+  expect(Library.isAllowedToRun(new URL('ftp://example.com/'))).toBe(false)
 })

@@ -19,7 +19,7 @@ const domains = getDomainsList()
 const allowed = isAllowedToRun(new URL('https://sub.example.com/path'))
 ```
 
-`getDomainsList()` returns a fresh copy of the sorted, wildcard-expanded `Full` domain list. `isAllowedToRun()` uses binary search to match either the exact URL hostname or a parent domain at a DNS label boundary.
+`getDomainsList()` returns a fresh copy of the sorted `Full` list of collected domains and original suffix-wildcard patterns. `isAllowedToRun()` accepts HTTP(S) URLs, matches exact or parent domains at a DNS label boundary, and recognizes original patterns such as `example.*`, including multi-label suffixes. An original `example.*` also matches `example.com.evil` because all suffixes are allowed.
 
 ```js
 isAllowedToRun(new URL('https://example.com/'))
@@ -34,7 +34,7 @@ isAllowedToRun(new URL('https://notexample.com/'))
 
 The same functions are available from the typed `@filteringdev/tinyshield-domain-collection/lib` subpath. tinyShield should call `getDomainsList()` only from its builder so this data package is not bundled into the userscript. Runtime consumers such as Extra can use `isAllowedToRun()` to decide whether tinyShield should run for a URL.
 
-The `Full` list is used because `Normal` may contain wildcard suffix patterns such as `domain.*`. Existing data constants remain available for compatibility:
+The `Full` list is used for matching because `Normal` may contain synthetic wildcard groups that must not match uncollected suffixes. The data constants remain available:
 
 ```js
 import {
@@ -57,9 +57,9 @@ import Normal from '@filteringdev/tinyshield-domain-collection/normal.json' with
 | Export | JSON shape | Description |
 | --- | --- | --- |
 | `normal.json` | `string[]` | Deduplicated domain patterns from the tinyShield fetcher. |
-| `full.json` | `string[]` | Patterns after wildcard suffix expansion. |
+| `full.json` | `string[]` | Collected domains and original suffix-wildcard patterns, without expansion. |
 | `each-domain.json` | `string[][]` | Normal patterns grouped by registrable domain. |
-| `each-domain-full.json` | `string[][]` | Grouped patterns after wildcard suffix expansion. |
+| `each-domain-full.json` | `string[][]` | Collected matching rules grouped by registrable domain name. |
 | `manifest.json` | object | Schema, source package, counts, and canonical content hash. |
 
 Every flat list, every group, and the list of groups are sorted by Unicode code point. The generated files do not contain timestamps, so identical source content produces byte-for-byte identical output.
@@ -68,7 +68,7 @@ Every flat list, every group, and the list of groups are sorted by Unicode code 
 
 ```ts
 type DomainCollectionManifest = {
-  readonly SchemaVersion: 1
+  readonly SchemaVersion: 2
   readonly ContentHash: string
   readonly SourcePackage: '@filteringdev/tinyshield-lib'
   readonly SourcePackageVersion: string
@@ -85,13 +85,15 @@ type DomainCollectionManifest = {
 
 ## Updating
 
-The scheduled workflow runs daily at 00:00 UTC and can also be started manually. It performs these steps:
+The scheduled workflow runs daily at 00:00 UTC and can also be started manually. Before enabling schema 2 builds, publish a wildcard-preserving `@filteringdev/tinyshield-lib` release and update the builder's pinned dependency. The build rejects older expanded data. Schema 2 changes the meaning of `Full` and `EachDomainFull`; consumers must handle original `.*` patterns and must not interpret synthetic `Normal` groups as matching rules.
+
+The workflow performs these steps:
 
 1. Lint and test the generator.
 2. Fetch live domain data through the npm release of `@filteringdev/tinyshield-lib`.
 3. Download the latest npm package with retries and compare its manifest with the generated hash.
 4. Exit without publishing when the hash is unchanged.
-5. Increment only the patch version and publish through npm trusted publishing when content changed or a prerelease is promoted.
+5. Increment the major version for a schema upgrade, otherwise increment the patch version, and publish through npm trusted publishing when content changed or a prerelease is promoted.
 
 When the latest npm package is a prerelease, the workflow promotes it to a stable version even when the domain hash is unchanged. The workflow fails without publishing when an upstream request, repeated npm registry lookup, schema validation, or build fails. A decrease of more than 25 percent in the `Normal` count is also blocked. A maintainer can review the change and use the manual `allow-large-change` input to permit it.
 
