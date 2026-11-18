@@ -7,7 +7,7 @@ import {
 } from './domain-data.js'
 
 export type DomainCollectionManifest = {
-	readonly SchemaVersion: 1
+	readonly SchemaVersion: 2
 	readonly ContentHash: string
 	readonly SourcePackage: '@filteringdev/tinyshield-lib'
 	readonly SourcePackageVersion: string

@@ -1,5 +1,7 @@
 import type { DomainCollectionManifest } from './domain-artifacts.js'
 
+export type ComparableManifest = Omit<DomainCollectionManifest, 'SchemaVersion'> & { SchemaVersion: 1 | 2 }
+
 export type ReleaseDecision = {
   Changed: boolean
   LargeDecrease: boolean
@@ -18,9 +20,9 @@ function ParseCount(Counts: Record<string, unknown>, Name: string): number {
   return Count as number
 }
 
-export function ParseDomainCollectionManifest(Value: unknown, Name: string): DomainCollectionManifest {
+export function ParseDomainCollectionManifest(Value: unknown, Name: string): ComparableManifest {
   if (!IsRecord(Value)) throw new TypeError(`${Name} must contain an object`)
-  if (Value['SchemaVersion'] !== 1) throw new TypeError(`${Name} has an unsupported SchemaVersion`)
+  if (Value['SchemaVersion'] !== 1 && Value['SchemaVersion'] !== 2) throw new TypeError(`${Name} has an unsupported SchemaVersion`)
   if (typeof Value['ContentHash'] !== 'string' || !/^[a-f0-9]{64}$/.test(Value['ContentHash'])) {
     throw new TypeError(`${Name} must contain a SHA-256 ContentHash`)
   }
@@ -33,7 +35,7 @@ export function ParseDomainCollectionManifest(Value: unknown, Name: string): Dom
   if (!IsRecord(Value['Counts'])) throw new TypeError(`${Name} must contain Counts`)
 
   return {
-    SchemaVersion: 1,
+    SchemaVersion: Value['SchemaVersion'],
     ContentHash: Value['ContentHash'],
     SourcePackage: '@filteringdev/tinyshield-lib',
     SourcePackageVersion: Value['SourcePackageVersion'],
@@ -47,12 +49,13 @@ export function ParseDomainCollectionManifest(Value: unknown, Name: string): Dom
 }
 
 export function CompareReleaseManifests(
-  Current: DomainCollectionManifest,
-  Previous: DomainCollectionManifest,
+  Current: ComparableManifest,
+  Previous: ComparableManifest,
   AllowLargeChange: boolean = false,
   ForcePublish: boolean = false
 ): ReleaseDecision {
-  if (Current.ContentHash === Previous.ContentHash) {
+  if (Current.SchemaVersion < Previous.SchemaVersion) throw new Error('Cannot publish an older domain collection schema')
+  if (Current.SchemaVersion === Previous.SchemaVersion && Current.ContentHash === Previous.ContentHash) {
     return { Changed: ForcePublish, LargeDecrease: false, DecreasePercentage: 0 }
   }
 

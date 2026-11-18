@@ -36,6 +36,7 @@ export function getDomainsList(): string[] {
 }
 
 export function isAllowedToRun(Url: URL): boolean {
+  if (Url.protocol !== 'http:' && Url.protocol !== 'https:') return false
   let Hostname = Url.hostname.toLowerCase()
   if (Hostname.endsWith('.')) Hostname = Hostname.slice(0, -1)
   if (Hostname.length === 0) return false
@@ -44,6 +45,9 @@ export function isAllowedToRun(Url: URL): boolean {
   for (let Index = 0; Index < Parts.length; Index += 1) {
     const Candidate = Parts.slice(Index).join('.')
     if (BinarySearch(Candidate)) return true
+    for (let End = Index + 1; End < Parts.length; End += 1) {
+      if (BinarySearch(`${Parts.slice(Index, End).join('.')}.*`)) return true
+    }
   }
 
   return false

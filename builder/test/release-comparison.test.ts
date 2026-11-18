@@ -4,7 +4,7 @@ import { CompareReleaseManifests, ParseDomainCollectionManifest } from '../sourc
 
 function CreateManifest(Normal: number, HashCharacter: string = 'a'): DomainCollectionManifest {
   return {
-    SchemaVersion: 1,
+    SchemaVersion: 2,
     ContentHash: HashCharacter.repeat(64),
     SourcePackage: '@filteringdev/tinyshield-lib',
     SourcePackageVersion: '4.0.5',
@@ -61,4 +61,12 @@ test('parses a valid manifest and rejects malformed counts', () => {
     Counts: { ...Manifest.Counts, Normal: 0 }
   }
   expect(() => ParseDomainCollectionManifest(InvalidManifest, 'Fixture')).toThrow('Manifest Counts.Normal must be a positive safe integer')
+})
+
+test('accepts a version 1 baseline and publishes a schema change', () => {
+  const Current = CreateManifest(100)
+  const Previous = { ...Current, SchemaVersion: 1 as const }
+  expect(ParseDomainCollectionManifest(Previous, 'Previous')).toEqual(Previous)
+  expect(CompareReleaseManifests(Current, Previous).Changed).toBe(true)
+  expect(() => CompareReleaseManifests(Previous, Current)).toThrow('older domain collection schema')
 })

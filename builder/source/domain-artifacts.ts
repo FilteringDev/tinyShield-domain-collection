@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 const SourcePackage = '@filteringdev/tinyshield-lib'
 
 export type DomainCollectionManifest = {
-  SchemaVersion: 1
+  SchemaVersion: 2
   ContentHash: string
   SourcePackage: typeof SourcePackage
   SourcePackageVersion: string
@@ -91,6 +91,9 @@ export function CreateDomainArtifacts(Container: unknown, SourcePackageVersion: 
   if (!(Container instanceof Map)) {
     throw new TypeError('Domain container must be a Map')
   }
+  if (!(Container.get('Groups') instanceof Map)) {
+    throw new TypeError('Domain container must come from a wildcard-preserving tinyshield-lib release')
+  }
   if (SourcePackageVersion.length === 0) {
     throw new TypeError('Source package version must not be empty')
   }
@@ -100,7 +103,7 @@ export function CreateDomainArtifacts(Container: unknown, SourcePackageVersion: 
   const EachDomain = NormalizeGroupedView(Container.get('EachDomain'), 'EachDomain')
   const EachDomainFull = NormalizeGroupedView(Container.get('EachDomainFull'), 'EachDomainFull')
   const Manifest: DomainCollectionManifest = {
-    SchemaVersion: 1,
+    SchemaVersion: 2,
     ContentHash: CreateContentHash(Normal, Full, EachDomain, EachDomainFull),
     SourcePackage,
     SourcePackageVersion,
